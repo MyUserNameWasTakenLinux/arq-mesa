@@ -1,0 +1,349 @@
+name: arq-mesa 
+base: core26
+platforms:
+  amd64:
+version: '0.1'
+summary: Provides Mesa Drivers.
+description: |
+  Builds Mesa from the latest commit at my GitLab repository.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict
+
+slots:
+  arq-mesa:
+    interface: content
+    content: gaming-graphics-core26
+    read:
+      - /
+
+package-repositories:
+  - type: apt
+    url: http://archive.ubuntu.com/ubuntu/
+    suites: [resolute, resolute-updates]
+    components: [main, universe]
+    architectures: [amd64, i386]
+    key-id: F6ECB3762474EDA9D21B7022871920D1991BC93C
+    key-server: keyserver.ubuntu.com
+
+parts:
+  libdrm:
+    source: https://gitlab.freedesktop.org/mesa/libdrm
+    source-type: git
+    source-tag: libdrm-2.4.134
+    plugin: meson
+    meson-parameters:
+      - --prefix=/usr
+      - -Dtests=false
+      - -Dman-pages=disabled
+      - -Dvalgrind=disabled
+      - -Dcairo-tests=disabled
+    build-packages:
+      - build-essential
+      - libpciaccess-dev
+      - meson
+      - ninja-build
+      - pkgconf
+    stage:
+      - usr/include
+      - usr/lib/libdrm*.so*
+      - usr/lib/*/libdrm*.so*
+      - usr/lib/*/pkgconfig/libdrm*.pc
+      - usr/lib/pkgconfig/libdrm*.pc
+      - usr/share/pkgconfig/libdrm*.pc
+    prime:
+      - usr/lib/libdrm*.so.*
+      - usr/lib/*/libdrm*.so.*
+
+  libdrm-32:
+    source: https://gitlab.freedesktop.org/mesa/libdrm
+    source-type: git
+    source-tag: libdrm-2.4.134
+    plugin: meson
+    meson-parameters:
+      - --prefix=/usr
+      - --libdir=lib/i386-linux-gnu
+      - -Dtests=false
+      - -Dman-pages=disabled
+      - -Dvalgrind=disabled
+      - -Dcairo-tests=disabled
+    build-environment:
+      - CC: gcc -m32
+      - PKG_CONFIG_PATH: /usr/lib/i386-linux-gnu/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+    build-packages:
+      - build-essential
+      - gcc-multilib
+      - libpciaccess-dev:i386
+      - meson
+      - ninja-build
+      - pkgconf
+    stage:
+      - usr/include
+      - usr/lib/libdrm*.so*
+      - usr/lib/*/libdrm*.so*
+      - usr/lib/*/pkgconfig/libdrm*.pc
+      - usr/lib/pkgconfig/libdrm*.pc
+      - usr/share/pkgconfig/libdrm*.pc
+    prime:
+      - usr/lib/libdrm*.so.*
+      - usr/lib/*/libdrm*.so.*
+
+  mesa:
+    after: [libdrm]
+    source: https://gitlab.freedesktop.org/MonocleAmon/mesa
+    source-type: git
+    plugin: meson
+    meson-parameters:
+      - --prefix=/usr
+      - -Dgallium-drivers=zink,iris
+      - -Dintel-elk=false
+      - -Dvulkan-drivers=intel
+      - -Dplatforms=x11,wayland
+      - -Dglx=dri
+      - -Dglvnd=enabled
+      - -Degl=enabled
+      - -Dgbm=enabled
+      - -Dgallium-va=enabled
+      - -Dvideo-codecs=all # Mesa says something about legal
+      - -Dinstall-mesa-clc=true
+
+    build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig:$CRAFT_STAGE/usr/lib/pkgconfig:$CRAFT_STAGE/usr/share/pkgconfig:$PKG_CONFIG_PATH
+      - CFLAGS: -I$CRAFT_STAGE/usr/include -I$CRAFT_STAGE/usr/include/libdrm $CFLAGS
+      - CXXFLAGS: -I$CRAFT_STAGE/usr/include -I$CRAFT_STAGE/usr/include/libdrm $CXXFLAGS
+      - LDFLAGS: -L$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR -L$CRAFT_STAGE/usr/lib $LDFLAGS
+    build-packages:
+      - bison
+      - build-essential
+      - debhelper
+      - flex
+      - glslang-tools
+      - libclang-21-dev
+      - libclang-cpp21-dev
+      - libclc-21
+      - libclc-21-dev
+      - libdisplay-info-dev
+      - libelf-dev
+      - libexpat1-dev
+      - libglvnd-core-dev
+      - libllvmspirvlib-21-dev
+      - libpng-dev
+      - libsensors-dev
+      - libva-dev
+      - libvulkan-dev
+      - libwayland-dev
+      - libwayland-egl-backend-dev
+      - libx11-dev
+      - libx11-xcb-dev
+      - libxcb-dri2-0-dev
+      - libxcb-dri3-dev
+      - libxcb-glx0-dev
+      - libxcb-present-dev
+      - libxcb-randr0-dev
+      - libxcb-shm0-dev
+      - libxcb-sync-dev
+      - libxext-dev
+      - libxrandr-dev
+      - libxshmfence-dev
+      - libxxf86vm-dev
+      - libzstd-dev
+      - linux-libc-dev
+      - llvm-21-dev
+      - llvm-spirv-21
+      - meson
+      - pkgconf
+      - python3-mako
+      - spirv-tools-dev
+      - valgrind
+      - wayland-protocols
+      - x11proto-dev
+      - zlib1g-dev
+    prime:
+      - -usr/bin/mesa_clc
+      - -usr/bin/vtn_bindgen2
+
+  mesa-32:
+    after: [libdrm-32, mesa]
+    source: https://gitlab.freedesktop.org/MonocleAmon/mesa
+    source-type: git
+    plugin: meson
+    meson-parameters:
+      - --prefix=/usr
+      - --libdir=lib/i386-linux-gnu
+      - -Dllvm=disabled
+      - -Dmesa-clc=system
+      - -Dgallium-drivers=zink,iris
+      - -Dintel-elk=false
+      - -Dvulkan-drivers=intel
+      - -Dplatforms=x11,wayland
+      - -Dglx=dri
+      - -Dglvnd=enabled
+      - -Degl=enabled
+      - -Dgbm=enabled
+      - -Dgallium-va=enabled
+      - -Dvideo-codecs=all # Mesa says something about legal
+
+    build-environment:
+      - CC: gcc -m32
+      - CXX: g++ -m32
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:$CRAFT_STAGE/usr/lib/pkgconfig:$CRAFT_STAGE/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+      - CFLAGS: -I$CRAFT_STAGE/usr/include -I$CRAFT_STAGE/usr/include/libdrm${CFLAGS:+ $CFLAGS}
+      - CXXFLAGS: -I$CRAFT_STAGE/usr/include -I$CRAFT_STAGE/usr/include/libdrm${CXXFLAGS:+ $CXXFLAGS}
+      - LDFLAGS: -L$CRAFT_STAGE/usr/lib/i386-linux-gnu -L$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR -L$CRAFT_STAGE/usr/lib${LDFLAGS:+ $LDFLAGS}
+    build-packages:
+      - bison
+      - build-essential
+      - debhelper
+      - flex
+      - g++-multilib
+      - gcc-multilib
+      - libdisplay-info-dev:i386
+      - libelf-dev:i386
+      - libexpat1-dev:i386
+      - libglvnd-core-dev:i386
+      - libpng-dev:i386
+      - libsensors-dev:i386
+      - libva-dev:i386
+      - libvulkan-dev:i386
+      - libwayland-dev:i386
+      - libwayland-egl-backend-dev:i386
+      - libx11-dev:i386
+      - libx11-xcb-dev:i386
+      - libxcb-dri2-0-dev:i386
+      - libxcb-dri3-dev:i386
+      - libxcb-glx0-dev:i386
+      - libxcb-present-dev:i386
+      - libxcb-randr0-dev:i386
+      - libxcb-shm0-dev:i386
+      - libxcb-sync-dev:i386
+      - libxext-dev:i386
+      - libxrandr-dev:i386
+      - libxshmfence-dev:i386
+      - libxxf86vm-dev:i386
+      - libzstd-dev:i386
+      - linux-libc-dev:i386
+      - meson
+      - pkgconf
+      - python3-mako
+      - spirv-tools-dev:i386
+      - wayland-protocols
+      - x11proto-dev
+      - zlib1g-dev:i386
+
+  debs:
+    plugin: nil
+    build-packages:
+      - patchelf
+    stage-packages:
+      - libgl1:amd64
+      - libgl1:i386
+      - libvkd3d1:amd64
+      - libvdpau-va-gl1:amd64
+      - libxml2-16:i386
+      - libxml2-16:amd64
+      - libstdc++6
+      - libstdc++6:i386
+      - libwayland-client0
+      - libwayland-client0:i386
+      - libwayland-egl1
+      - libwayland-egl1:i386
+      - libwayland-server0
+      - libwayland-server0:i386
+      - vulkan-tools
+      - mesa-utils
+      - libvulkan1
+      - libvulkan1:i386
+      - libegl1
+      - libegl1:i386
+      - libgles2
+      - libgles2:i386
+      - libdrm-common
+      - libpciaccess0
+      - libpciaccess0:i386
+      - libdisplay-info3
+      - libdisplay-info3:i386
+      - libelf1t64
+      - libelf1t64:i386
+      - libexpat1
+      - libexpat1:i386
+      - libgcc-s1
+      - libgcc-s1:i386
+      - libsensors5
+      - libsensors5:i386
+      - libzstd1
+      - libzstd1:i386
+      - zlib1g
+      - zlib1g:i386
+      - libpng16-16t64
+      - libpng16-16t64:i386
+      - libudev1
+      - libudev1:i386
+      - libva2
+      - libva2:i386
+      - libx11-6
+      - libx11-6:i386
+      - libx11-xcb1
+      - libx11-xcb1:i386
+      - libxcb1
+      - libxcb1:i386
+      - libxcb-dri2-0
+      - libxcb-dri2-0:i386
+      - libxcb-dri3-0
+      - libxcb-dri3-0:i386
+      - libxcb-glx0
+      - libxcb-glx0:i386
+      - libxcb-present0
+      - libxcb-present0:i386
+      - libxcb-randr0
+      - libxcb-randr0:i386
+      - libxcb-shm0
+      - libxcb-shm0:i386
+      - libxcb-sync1
+      - libxcb-sync1:i386
+      - libxcb-xfixes0
+      - libxcb-xfixes0:i386
+      - libxext6
+      - libxext6:i386
+      - libxshmfence1
+      - libxshmfence1:i386
+      - libxxf86vm1
+      - libxxf86vm1:i386
+    stage:
+      - -usr/lib/*/libdrm*
+      - -usr/lib/*/libGLX_mesa*
+      - -usr/lib/*/libEGL_mesa*
+      - -usr/lib/*/libgbm*
+      - -usr/lib/*/libgallium*
+      - -usr/lib/*/libglapi*
+      - -usr/lib/*/libGLESv1_CM_mesa*
+      - -usr/lib/*/libGLESv2_mesa*
+      - -usr/lib/*/libvulkan_intel*
+      - -usr/lib/*/libvulkan_lvp*
+      - -usr/lib/*/libvulkan_radeon*
+      - -usr/lib/*/dri/*
+      - -usr/lib/*/gbm/*
+      - -usr/share/glvnd/*
+      - -usr/share/drirc.d/*
+      - -usr/share/vulkan/icd.d/*
+
+      - -usr/share/doc
+      - -usr/share/man
+      - -usr/share/gcc
+      - -usr/share/mesa-demos
+      - -usr/share/lintian
+      - -usr/share/X11
+      - -usr/share/bug
+      - -usr/share/locale
+      - -usr/share/gdb
+      - -etc/X11
+      - -etc/sensors3.conf
+      - -usr/lib/*/gconv
+    override-prime: |
+      craftctl default
+      if [[ "$CRAFT_ARCH_BUILD_FOR" == "amd64" ]]; then
+        for f in usr/lib/*/libvkd3d-shader.so.* usr/lib/*/libvkd3d.so.*; do
+          if [ -f $f ]; then
+            patchelf --clear-execstack $f
+          fi
+        done
+      fi
